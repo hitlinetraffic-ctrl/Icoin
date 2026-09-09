@@ -1,0 +1,8 @@
+{
+  "chain_id": "icoin-testnet",
+  "timestamp": 1700000000,
+  "max_supply": 100000000,
+  "initial_balance": {
+    "GENESIS_ADDRESS": 100000000
+  }
+}

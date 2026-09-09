@@ -1,0 +1,38 @@
+cd C:\icoin
+docker-compose down
+docker-compose up --build
+
+docker logs icoin-icoin-delegate1-1
+
+Получит токен (если он есть в коде):
+docker logs icoin-icoin-1 | Select-String "Токен" | Select-Object -Last 1
+
+
+
+
+
+
+docker exec -it icoin-delegate1-1 cat /app/logs/icoin_info.log
+
+http://localhost:8001/health
+
+
+docker container prune -f
+
+docker rmi icoin-delegate1
+docker rmi icoin-delegate2
+
+
+docker builder prune -a -f
+
+docker system prune -a -f
+
+docker compose down -v
+
+docker-compose logs -f
+
+
+
+
+cd C:\develop\flutter
+cd C:\Quest_vibe

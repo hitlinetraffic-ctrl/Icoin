@@ -1,0 +1,141 @@
+services:
+  redis-node-1:
+    image: redis:7.0-alpine
+    command: >
+      redis-server 
+      --port 7000 
+      --cluster-enabled yes 
+      --cluster-config-file nodes.conf 
+      --cluster-node-timeout 5000
+      --requirepass icoin_redis_secure_password_2025_change_me
+      --masterauth icoin_redis_secure_password_2025_change_me
+      --appendonly yes
+    ports:
+      - "7000:7000"
+    networks:
+      - icoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "icoin_redis_secure_password_2025_change_me", "-p", "7000", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-node-2:
+    image: redis:7.0-alpine
+    command: >
+      redis-server 
+      --port 7001 
+      --cluster-enabled yes 
+      --cluster-config-file nodes.conf 
+      --cluster-node-timeout 5000
+      --requirepass icoin_redis_secure_password_2025_change_me
+      --masterauth icoin_redis_secure_password_2025_change_me
+      --appendonly yes
+    ports:
+      - "7001:7001"
+    networks:
+      - icoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "icoin_redis_secure_password_2025_change_me", "-p", "7001", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-node-3:
+    image: redis:7.0-alpine
+    command: >
+      redis-server 
+      --port 7002 
+      --cluster-enabled yes 
+      --cluster-config-file nodes.conf 
+      --cluster-node-timeout 5000
+      --requirepass icoin_redis_secure_password_2025_change_me
+      --masterauth icoin_redis_secure_password_2025_change_me
+      --appendonly yes
+    ports:
+      - "7002:7002"
+    networks:
+      - icoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "icoin_redis_secure_password_2025_change_me", "-p", "7002", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-cluster-init:
+    image: redis:7.0-alpine
+    command: >
+      sh -c "
+      echo 'Ожидание запуска Redis узлов...' &&
+      sleep 30 &&
+      echo 'Проверка доступности узлов...' &&
+      redis-cli -a icoin_redis_secure_password_2025_change_me -h redis-node-1 -p 7000 ping &&
+      redis-cli -a icoin_redis_secure_password_2025_change_me -h redis-node-2 -p 7001 ping &&
+      redis-cli -a icoin_redis_secure_password_2025_change_me -h redis-node-3 -p 7002 ping &&
+      echo 'Инициализация Redis Cluster...' &&
+      redis-cli -a icoin_redis_secure_password_2025_change_me --cluster create redis-node-1:7000 redis-node-2:7001 redis-node-3:7002 --cluster-replicas 0 --cluster-yes &&
+      echo 'Проверка состояния кластера...' &&
+      redis-cli -a icoin_redis_secure_password_2025_change_me -h redis-node-1 -p 7000 cluster info
+      "
+    depends_on:
+      redis-node-1:
+        condition: service_healthy
+      redis-node-2:
+        condition: service_healthy  
+      redis-node-3:
+        condition: service_healthy
+    networks:
+      - icoin-network
+
+  delegate1:
+    build: .
+    command: sh -c "sleep 45 && python icoin.py"
+    ports:
+      - "8001:8001"
+    environment:
+      - NODE_ID=delegate1
+      - PORT=8001
+      - SHARD_ID=1
+      - BOOTSTRAP_NODE=delegate1:8001
+      - JWT_SECRET=icoin_super_secure_jwt_secret_2025_change_in_production
+      - REDIS_PASSWORD=icoin_redis_secure_password_2025_change_me
+    depends_on:
+      redis-cluster-init:
+        condition: service_completed_successfully
+    networks:
+      - icoin-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    mem_limit: 512m
+    mem_reservation: 256m
+
+  delegate2:
+    build: .
+    command: sh -c "sleep 55 && python icoin.py"
+    ports:
+      - "8002:8002"
+    environment:
+      - NODE_ID=delegate2
+      - PORT=8002
+      - SHARD_ID=2
+      - BOOTSTRAP_NODE=delegate1:8001
+      - JWT_SECRET=icoin_super_secure_jwt_secret_2025_change_in_production
+      - REDIS_PASSWORD=icoin_redis_secure_password_2025_change_me
+    depends_on:
+      redis-cluster-init:
+        condition: service_completed_successfully
+    networks:
+      - icoin-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    mem_limit: 512m
+    mem_reservation: 256m
+
+networks:
+  icoin-network:
+    driver: bridge

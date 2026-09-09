@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>ICOIN Block Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
+header{background:#020617;padding:20px;border-bottom:1px solid #1e293b}
+h1{margin:0;font-size:22px}
+.container{max-width:1100px;margin:auto;padding:20px}
+.card{background:#020617;border:1px solid #1e293b;border-radius:10px;padding:20px;margin-bottom:20px}
+input{width:100%;padding:10px;border-radius:6px;border:1px solid #334155;background:#020617;color:white}
+button{padding:10px 16px;margin-top:10px;border:none;border-radius:6px;background:#2563eb;color:white;cursor:pointer}
+button:hover{background:#1d4ed8}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px;border-bottom:1px solid #1e293b;text-align:left;font-size:14px}
+.hash{font-family:monospace;font-size:12px}
+.badge{background:#1e293b;padding:4px 8px;border-radius:6px;font-size:12px}
+.section-title{margin-bottom:10px;font-size:18px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>ICOIN Block Explorer</h1>
+</header>
+
+<div class="container">
+
+<div class="card">
+<div class="section-title">Поиск адреса</div>
+<input id="addressInput" placeholder="Введите адрес">
+<button onclick="searchAddress()">Поиск</button>
+<div id="addressResult"></div>
+</div>
+
+<div class="card">
+<div class="section-title">Последние блоки</div>
+<table class="table" id="blocksTable">
+<thead>
+<tr>
+<th>Height</th>
+<th>Validator</th>
+<th>Hash</th>
+<th>Tx</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div class="card">
+<div class="section-title">Mempool</div>
+<table class="table" id="mempoolTable">
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>Amount</th>
+<th>Fee</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+const API="http://localhost:8001";
+
+async function loadBlocks(){
+try{
+const res=await fetch(API+"/blocks");
+const blocks=await res.json();
+const tbody=document.querySelector("#blocksTable tbody");
+tbody.innerHTML="";
+
+blocks.reverse().slice(0,20).forEach(b=>{
+const tr=document.createElement("tr");
+
+const txCount=b.transactions?b.transactions.length:0;
+
+tr.innerHTML=`
+<td>${b.index}</td>
+<td><span class="badge">${b.validator||"-"}</span></td>
+<td class="hash">${b.hash?b.hash.substring(0,24):"-"}</td>
+<td>${txCount}</td>
+`;
+
+tbody.appendChild(tr);
+});
+}catch(e){
+console.log("blocks error",e);
+}
+}
+
+async function loadMempool(){
+try{
+const res=await fetch(API+"/mempool");
+const txs=await res.json();
+const tbody=document.querySelector("#mempoolTable tbody");
+tbody.innerHTML="";
+
+if(!Array.isArray(txs)) return;
+
+txs.forEach(tx=>{
+const tr=document.createElement("tr");
+tr.innerHTML=`
+<td class="hash">${tx.from||"-"}</td>
+<td class="hash">${tx.to||"-"}</td>
+<td>${tx.amount||0}</td>
+<td>${tx.fee||0}</td>
+`;
+
+tbody.appendChild(tr);
+});
+}catch(e){
+console.log("mempool error",e);
+}
+}
+
+async function searchAddress(){
+const addr=document.getElementById("addressInput").value;
+if(!addr) return;
+
+try{
+const res=await fetch(API+"/balance/"+addr);
+const data=await res.json();
+
+const div=document.getElementById("addressResult");
+
+if(data.balance===undefined){
+div.innerHTML="Адрес не найден";
+return;
+}
+
+div.innerHTML=`
+<div style="margin-top:10px">
+Баланс: <b>${data.balance} ICOIN</b>
+</div>`;
+
+}catch(e){
+console.log("address error",e);
+}
+}
+
+async function autoRefresh(){
+await loadBlocks();
+await loadMempool();
+}
+
+setInterval(autoRefresh,4000);
+autoRefresh();
+</script>
+
+</body>
+</html>
